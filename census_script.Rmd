@@ -21,20 +21,68 @@ Fill out [this form](https://censoc-download.demog.berkeley.edu/) to access the 
 
 * Read in the data into a tibble called `raw`. Make sure to use the `col_types` argument so that you code does not produce aesthetically offensive messages. 
 
+```{r import, cache = T}
+raw <- read_csv('censoc_dmf_v1/censoc_dmf_v1.csv', col_types = 'ciiiiid') %>%
+  filter(bmonth != 0)
+```
+
+```{r exploration}
+raw %>% nrow()
+
+raw %>% filter(death_age == max(death_age)) %>% pull(byear)
+
+raw %>% 
+  group_by(byear) %>% 
+  summarize(mean_death = mean(death_age)) %>%
+  arrange(desc(mean_death)) %>%
+  mutate(rank = row_number()) %>%
+  arrange(byear)
+
+raw %>% 
+  group_by(dmonth) %>% 
+  count(.) %>% 
+  ungroup() %>%
+  arrange(desc(n)) %>%
+  slice(1:4)
+
+```
+
 * Be professional. Give your R code chunks names. Use `cache=TRUE` as a code chunk option for any chunk that takes a long time to run.
 
 * Once you have the data, take a look. There is at least one bad row. Find it and change your code so that it is not read in to `raw`.
 
 * How many rows (individual men) do we have in the data? Big data!
+5703273
 
 * Consider the oldest man in the dataset. (All the observation are male.) What year was he born in?
+1860
 
 * Calculate the average age at death by birth year. What two years have the highest average? Why? Without looking can you guess which years have the lowest average?
+1860 and 1854
+
+Probably the years where people would be young men during the Great Depression or WWII... 1910-1920
 
 * Which four months have the highest number of deaths? Why? What does that suggest about the influence of global warming on mortality?
-
+The winter months, December to March. This suggest that global warming will cause fewer deaths. Of course, this is stupid.
 
 ## Scene 2
+
+```{r, cache = T}
+raw <- raw %>% 
+  mutate(death_date = as.Date(paste(dyear,dmonth,'01',sep = '-')))
+
+x <- raw %>% select(c(death_date, death_age))
+
+x %>% #sample_n(size = 10000, replace = F) %>%
+  ggplot(aes(death_age)) +
+  geom_bar() +
+  labs(x = 'Age at Death',
+       y = 'Total Deaths',
+       title = 'Number of Deaths for Each Age',
+       subtitle = 'Ages at death is normalesque',
+       caption = '1940 US Census Mortality Data from CenSoc')
+```
+
 
 This data set is not easy to work with because it has no dates. It just has months and years. Create a new variable, `death_date`, defined as the first day of the month when someone died, even though we don't have exact day information. Drop all the variables except `death_date` and `death_age`. A smaller data set will be easier to work with. Call this new tibble `x`.
 
@@ -48,6 +96,26 @@ Don't try to get this working on the whole data set at once. That takes forever.
 
 
 ## Scene 3
+
+```{r, cache = T}
+death_anim <- raw %>% 
+  # sample_n(size = 10000) %>%
+  mutate(season = if_else(dmonth >= 10 | dmonth <= 3, 'cold', 'hot')) %>%
+  group_by(death_date, season) %>%
+  count(.) %>%
+  ggplot(aes(death_date, n, color = season)) +
+  geom_line() +
+  geom_point() +
+  labs(title = 'Total Deaths Over Time',
+       subtitle = 'More deaths during cold weather',
+       x = 'Date of Death', y = 'Total') +
+  scale_color_manual(values = c('blue','red')) +
+  transition_reveal(death_date) +
+  theme_minimal()
+
+animate(death_anim, height = 5, width = 7,
+        units = 'in', res = 144, end_pause = 20)
+```
 
 Make a [cool animation](https://davidkane9.github.io/PPBDS/C-animation.html) with this data. First step is to build an interesting static graphic, using all your favorite **ggplot** tools. Then animate it in an interesting way. See the [one on Piazza](https://piazza.com/class/k5y1jx0s5ibe1?cid=776)  for my example. Do something similar, or better!
 
